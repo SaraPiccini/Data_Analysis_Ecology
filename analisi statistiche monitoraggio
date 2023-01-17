@@ -1,0 +1,152 @@
+install.packages("hillR")
+library(hillR)
+library(vegan)
+library(tidyverse)
+
+# preparazione dati
+# indici di biodiversità
+# analisi distribuzione densita biodiversità
+
+# importare dataset
+# scaricare direttaemnte da drive:
+id <- "1qXI_SlH-myF8v4S0xtJ8M3ULuxQQDoPn" #copia link della cartella eliminando parti del link all'inizio e alla fine
+a <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export_download", id), sep = ";")
+a #csv separato da punto e virgola
+# scrivere sep = ";")
+
+summary(a) #statistica variabili
+str(a) #dataset di abbondana di specie
+
+# per visualizzare i contenuti nella variabile che funazione bene quando le variabili sono n interi e character (non utile forse con decimale)
+# factor: un carattere/lettera che ha reso un dato non int 
+# funzione di ordine
+sort(unique(a$A))
+# modificare stringhe per eliminare lettera
+a$A <- gsub("2à", 2, a$B)
+a$A <- as.double(paste(a$A) 
+# quando si lavora con n decimali. il facot ha livelli che sono n interi, se cerchiamo di trasformare in n una variabile factor il programma trasforma il n in livelli della variabile e non variabile stessa
+# paste: trasforam in n i valori incollati
+
+# anche la variabile c è factor
+sort(unique(a$C))            
+a$C <- gsub("assente", 0, a$B)
+sort(unique(a$C))
+a$C <- as.double(paste(a$C))
+
+# trattare NA trasformandoli in zeri
+a[is.na(a)] <- 0 
+
+# N tot specie -> somma righe delle sp trovate dai 4 operatori (plot)
+a$ind <- rowSums(a[,c(3:6)])
+a$ind # abbondanza specie
+
+require(tidyverse) # richiama libreria
+
+# funzioni di grouping: permettono raggrumento 
+# funzioni di summary: prendono gruppi definiti x fare operazioni su gruppi e dare outpu che sia riassunto operazioni fatte
+# ci serve quando si hanno dati ripetuti
+# operazioni su dati raggruppati:
+
+b <- group_by(a, Site, species) %>% summarise(ind = sum(ind)) #pipe utili x fare operazioni su variabile senza dover scrivere le cose una alla volta
+b
+
+# calcolo indici diversita
+help("diversity")
+data(BCI)
+view(BCI) #colonne: abbondanze singole specie, righe: plot -> bisogna invertire righe e colonne
+# passare da dataframe in formato log (si usano perche piu comodi da compilare e per essere usati in plot 
+# a dataframe in formato wide come BCI non si puo fare
+
+c <- pivot_wider(b, values_from = ind, names_from = species)
+c
+c[is.na(c)] <- 0 
+view(c)
+
+sn <- specnumber(c[,-1]) # numero di specie toglie la prima colonna dei siti per non includerla nel calcolo sr
+ab <- rowSums(c[,-1]) #abbondanza specie
+si <- diversity((c[,-1]), index = "simpson") # indice di simpson
+sh <- diversity((c[,-1]), index = "shannon") # indice di shannon
+ev <- sh/log(sn) # omogeneita
+
+# visualizzazioni
+boxplot(sn)
+boxplot(ab)
+boxplot(si)
+boxplot(sh)
+boxplot(ev)
+
+#scatterplot
+plot(si, ab)
+plot(sh,ev)
+
+# analisi distribuzione biodiversita
+# distribuzione abbondanza in comunita
+# istogramma individui in area di studio
+hist(ab)
+hist(colSums(c[,-1])) # abbondanza specie (x: n individui per specie, y: abbondanza specie)
+
+# dice quando viene rispettata la condizione fai questo: concatenazione di if else ma meno brutta da scrivere
+ab_cat <- case_when(colSums(c[,-1]) < 2 ~ 1,  #quando somma colonne è minore di 2 assegna a cateroia 1
+                    colSums(c[,-1]) < 4 ~ 2,
+                    colSums(c[,-1]) < 8 ~ 3,
+                    colSums(c[,-1]) < 16 ~ 4,
+                    colSums(c[,-1]) < 22 ~ 5,
+                    colSums(c[,-1]) < 64 ~ 6,
+                    colSums(c[,-1]) < 128 ~ 7)
+
+hist(ab_cat)
+# se dato non distirbuito normalmente usare test non parametrici
+
+# Whittaker plot - grafico rango-abondanza
+w_plot <- data.frame(abb = colSums(c[,-1]))
+w_plot
+w_plot <- w_plot[order(-w_plot$abb),]
+w_plot # le abbondanze sono adesso ordinate in modo decrescente x rappresentarle 
+
+# definire rango delle specie
+w <- colSums(c[,-1])
+w <- sort(w, decreasing = T)
+r <- seq(1,28,1)
+
+w <- w/max(w)
+w
+
+plot(r, log(w), type = "o", col = "red", lwd = 2)
+
+# curve di accumulazione
+sp <- specaccum((c[,-1]))
+sp
+plot(sp) 
+# sito ben rappresentato nel campionamento se arriva ad un plateau 
+
+sp2 <- specaccum((c[,-1]), method = "collector")
+lines(sp2, col = "red", lwd=2) # specie rinvenute nei siti accumulate
+# differenza tra le curve: curva ricampionata molte volte, species accumulation rielabora per renderla morbida, la seconda è con il valore prescio) Fare accumulazione (50 permutazioni) per capire se ci arriva al plateau
+
+# curve A,B,C - abbondanza biomassa curva (abbondanza sopra biomassa: disturbo forte)
+
+id1 <- "1_1PV-y7J8v2nS09B3OVL1ImNK_7U8J20"
+id2 <- "1lvIWwepprZ0I41RTEwhGjLek98rU3lne"
+abb <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export_download", id1))
+bio <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export_download", id1))
+
+str(abb)
+abb0 <- subset(abb, abb$Fertilizer == 0)
+bio0 <- subset(bio, bio$Fertilizer == 0)
+
+abbondanza0 <- sort(colSums(abb0[, c[1,2]]), decreasing = T)
+abbondanza0 <- cumsum(abbondanza0)
+abbondanza0 <- abbondanza0/max(abbondanza0)
+r <- seq(1,10,1)
+plot(log(r), abbondanza0, type = "l")
+lines(log(r), abbondanza0, type = "l", col = "red")
+
+biomassa0 <- sort(colSums(bio0[, c[1,2]]), decreasing = T)
+biomassa0 <- cumsum(bio0)
+biomassa0 <- biomassa0/max(bioo0)
+r <- seq(1,10,1)
+plot(log(r), bioo0, type = "l")
+lines(log(r), abbondanza0, type = "l", col = "red")
+
+
+
