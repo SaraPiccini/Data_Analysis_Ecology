@@ -1,5 +1,0 @@
-# ANOVA - statistical test for significan effect, if including another varible
-anova(lm1, lm2)
-# including lm2 imrpove the model bc 
-
-# AIC: model fit. likelihood of the model. it should be as lowest as possible. use the value to compare different models. 

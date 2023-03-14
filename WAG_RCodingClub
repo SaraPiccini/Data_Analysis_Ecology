@@ -1,0 +1,10 @@
+# ANOVA - statistical test for significan effect, if including another varible. look at the p-value to understand if it is meaning to add it to explain the model
+anova(lm1, lm2)
+# including lm2 imrpove the model bc 
+
+# AIC: model fit. likelihood of the model. it should be as lowest as possible. use the value to compare different models. Used only with 
+
+# colinear: explanatory variables strongly correlated within each other cannot be used for analysis?
+# look at explanatory variables, why you want to use them, no collinearity, model selection to see which model fit the data best
+
+
