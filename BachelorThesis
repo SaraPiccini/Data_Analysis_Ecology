@@ -1,0 +1,140 @@
+setwd("C:/Users/Acer/Desktop/progetti/Formiche/Praterie/TRATTI PRADO")
+
+library(vegan)
+library(pairwiseAdonis)
+library(FD)
+library(iNEXT)
+
+data<-read.csv2("dataset.csv")
+
+data2<-data.frame(t(data[,2:41]))
+colnames(data2)<-data$specie
+
+data2$fascia<-c("MP1", "MP3", "MP1", "MP1", "MP4", "MP3", "MP2", "MP2", "MP4",
+                "MP3", "MP4", "MP4", "MP3", "MP2", "MP1", "MP3", "MP2", "MP3",
+                "MP3", "MP1", "MP4", "MP1", "MP2", "MP2", "MP4", "MP2", "MP3",
+                "MP2", "MP4", "MP2", "MP1", "MP3", "MP3", "MP2", "MP1", "MP1",
+                "MP4", "MP4", "MP1", "MP4")
+data2$fascia<-as.factor(data2$fascia)
+
+##### ORDINAMENTO ####
+
+ord<-metaMDS(data2[,1:14], dist="bray", autotransform = F, trymax=500) 
+
+plot(ord, display = "sites", type="none")   
+
+points(ord, pch=19, select=data2$fascia=="MP1", col="black")
+points(ord, pch=19, select=data2$fascia=="MP2", col="red")
+points(ord, pch=19, select=data2$fascia=="MP3", col="blue")
+points(ord, pch=19, select=data2$fascia=="MP4", col="green")
+
+legend(-3.1, 0, c("MP1", "MP2", "MP3", "MP4"), 
+       col=c("black", "red", "blue", "green"), pch = 19, cex = 0.7)
+text(ord, display="species", cex=1)
+
+### PERMANOVA ####
+
+dist<-vegdist(data2[,1:14], method="bray")
+adonis(dist~fascia, data=data2, permutations = 9999, method="bray")
+pairwise.adonis(dist, data2$fascia, sim.method= "bray", p.adjust.m='BH', perm=9999)
+
+### Species richness ####
+
+env<-read.csv2("environment.csv")
+richness<-read.csv2("ricchezza.csv")
+boxplot(richness$Nspecie~richness$fascia, xlab="fascia altitudinale", ylab="N specie", las=1)
+summary(aov(richness$Nspecie~richness$fascia))
+shapiro.test(residuals(aov(richness$Nspecie~richness$fascia)))
+bartlett.test(richness$Nspecie~richness$fascia)
+
+plot(richness$Nspecie~env$ALT, las=1, xlab="altitudine (m)", ylab="N specie", xlim=c(1200,2000))
+modello<-lm(richness$Nspecie~env$ALT)
+abline(modello)
+anova(modello)
+summary(modello)
+
+#### indici #####
+
+# q=0 Richness
+out.inc_R <- iNEXT(data, q=0, datatype="incidence_freq", se= TRUE, endpoint = 60)
+# q=1 Shannon
+out.inc_Sh <- iNEXT(dat_incT, q=1, datatype="incidence_freq", se= TRUE, endpoint = 60)
+# q=2 Simpson
+out.inc_Si <- iNEXT(dat_incT, q=2, datatype="incidence_freq", se= TRUE, endpoint = 60)
+out.inc_all <- iNEXT(dat_incT, q=c(0, 1, 2), datatype="incidence_freq")
+
+# Sample completeness
+ggiNEXT(out.inc_all, type=2, facet.var="none", color.var="site")
+
+# Sample???size???based R/E curves
+?iNEXT
+ggiNEXT(out.inc_R, type=1, color.var="site") + 
+  theme_bw(base_size = 18) + 
+  theme(legend.position="none")
+ggiNEXT(out.inc_Sh, type=1, color.var="site") + 
+  theme_bw(base_size = 18)+
+  theme(legend.position="none")
+ggiNEXT(out.inc_Si, type=1, color.var="site") + 
+  theme_bw(base_size = 18)+
+  theme(legend.position="none")
+ggiNEXT(out.inc_R, type=1, color.var = "site")
+ggiNEXT(out.inc_Sh, type=1, color.var = "site")
+ggiNEXT(out.inc_Si, type=1, color.var = "site")
+
+
+### CWM ####
+
+tratti<-read.csv2("tratti.csv", row.names = 1)
+data3<-data.frame(t(data[,2:41]))
+colnames(data3)<-data$specie
+data3<-as.matrix(data3)
+CWM_trait <- functcomp(tratti, data3, CWM.type = "all")
+CWM_trait
+
+# weber length
+
+boxplot(CWM_trait$WEBER_LENGTH~data2$fascia, xlab="fascia altitudinale", ylab="Weber length", las=1)
+summary(aov(CWM_trait$WEBER_LENGTH~data2$fascia))
+shapiro.test(residuals(aov(CWM_trait$WEBER_LENGTH~data2$fascia)))
+bartlett.test(CWM_trait$WEBER_LENGTH~data2$fascia)
+TukeyHSD(aov(CWM_trait$WEBER_LENGTH~data2$fascia))
+
+plot(CWM_trait$WEBER_LENGTH~env$ALT, xlab="altitudine (m)", ylab="Weber length", las=1)
+modello2<-lm(CWM_trait$WEBER_LENGTH~env$ALT)
+abline(modello2)
+anova(modello2)
+summary(modello2)
+
+# head length
+
+boxplot(CWM_trait$HEAD_LENGTH~data2$fascia, xlab="fascia altitudinale", ylab="Head length", las=1)
+summary(aov(CWM_trait$HEAD_LENGTH~data2$fascia))
+shapiro.test(residuals(aov(CWM_trait$HEAD_LENGTH~data2$fascia)))
+bartlett.test(CWM_trait$HEAD_LENGTH~data2$fascia)
+TukeyHSD(aov(CWM_trait$HEAD_LENGTH~data2$fascia))
+
+plot(CWM_trait$HEAD_LENGTH~env$ALT, xlab="altitudine (m)", ylab="Head length", las=1)
+modello3<-lm(CWM_trait$HEAD_LENGTH~env$ALT)
+abline(modello3)
+anova(modello3)
+summary(modello3)
+
+# femur length
+
+boxplot(CWM_trait$FEMOR_LENGTH~data2$fascia, xlab="fascia altitudinale", ylab="Femur length", las=1)
+summary(aov(CWM_trait$FEMOR_LENGTH~data2$fascia))
+shapiro.test(residuals(aov(CWM_trait$FEMOR_LENGTH~data2$fascia)))
+bartlett.test(CWM_trait$FEMOR_LENGTH~data2$fascia)
+TukeyHSD(aov(CWM_trait$FEMOR_LENGTH~data2$fascia))
+
+plot(CWM_trait$FEMOR_LENGTH~env$ALT, xlab="altitudine (m)", ylab="Femur length", las=1)
+modello4<-lm(CWM_trait$FEMOR_LENGTH~env$ALT)
+abline(modello4)
+anova(modello4)
+summary(modello4)
+
+### envfit ####
+
+envfit<-envfit(ord, CWM_trait, nperm=9999)
+plot(envfit, p.max=0.05)
+
